@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Analizador gratuito de equipos de Pokémon Champions: detecta amenazas, debilidades y cobertura.">
+<title>ChampAnalyze — Analiza tu equipo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080b14;color:#f7f8fc;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:920px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;padding:10px 0 28px}.brand{font-weight:900;font-size:21px}.tag{font-size:12px;color:#9ca8bd;border:1px solid #263149;border-radius:99px;padding:7px 10px}
+.hero{text-align:center;padding:20px 0 28px}.hero h1{font-size:clamp(38px,8vw,64px);line-height:1;margin:0 0 14px;letter-spacing:-2px}.hero p{color:#9ca8bd;max-width:650px;margin:auto}
+.card{background:#101827;border:1px solid #263149;border-radius:20px;padding:18px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.slot{min-height:105px;border:1px dashed #3a4864;border-radius:15px;background:#0c1320;color:#9ca8bd;display:flex;align-items:center;justify-content:center;cursor:pointer}.slot:hover{border-color:#8065ff;color:white}
+.slot.filled{border-style:solid;justify-content:flex-start;padding:10px;gap:9px;color:white}.sprite{width:55px;height:55px;object-fit:contain}.name{font-weight:800}.sub{font-size:12px;color:#9ca8bd}
+button{cursor:pointer}.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:800}.primary{color:white;background:linear-gradient(135deg,#7658ff,#4d8cff)}.ghost{color:#e5eaf5;background:#182236;border:1px solid #2b3953}.actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.ad{min-height:90px;border:1px dashed #33415d;border-radius:14px;display:grid;place-items:center;color:#65738d;font-size:12px;margin:16px 0}
+#results{display:none}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:#0c1320;border:1px solid #263149;border-radius:14px;padding:15px}.stat b{font-size:26px}.pill{display:inline-block;border-radius:99px;background:#1b2940;padding:6px 9px;margin:4px;font-size:12px}.bad{color:#ff6d89}.good{color:#3fe0a5}.warn{color:#ffd166}.notice{color:#9ca8bd;font-size:12px;line-height:1.55}
+.modal{position:fixed;inset:0;background:#000b;display:none;align-items:flex-end;justify-content:center;padding:12px;z-index:10}.modal.open{display:flex}.sheet{width:min(650px,100%);max-height:82vh;overflow:auto;background:#101827;border:1px solid #263149;border-radius:22px;padding:16px}.search{width:100%;padding:13px;border-radius:12px;background:#080e19;border:1px solid #2a3852;color:white;font-size:16px;margin-bottom:10px}.choices{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.choice{background:#162136;border:1px solid #293751;color:white;text-align:left;padding:11px;border-radius:12px}.footer{text-align:center;color:#68758d;font-size:11px;padding:28px 0;line-height:1.6}
+@media(max-width:650px){.grid{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:1fr}}
+
+.advrow{border:1px solid #263149;border-radius:14px;padding:12px;margin:8px 0;background:#0c1320}
+.advhead{display:flex;justify-content:space-between;align-items:center;gap:8px}.selects{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+select{width:100%;padding:10px;border-radius:10px;background:#111b2c;color:white;border:1px solid #2b3953}
+.scorebar{height:9px;background:#202b40;border-radius:99px;overflow:hidden;margin-top:7px}.scorefill{height:100%;background:linear-gradient(90deg,#7658ff,#3fe0a5)}
+.resultgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.mini{background:#0c1320;border:1px solid #263149;border-radius:14px;padding:14px}
+@media(max-width:650px){.selects,.resultgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header class="top"><div class="brand">⚡ ChampAnalyze</div><div class="tag">Gratis · sin registro</div></header>
+<section class="hero"><h1>¿Tu equipo está preparado?</h1><p>Selecciona tus Pokémon y obtén una lectura rápida de amenazas, debilidades y cobertura.</p></section>
+<section class="card"><h2>Tu equipo</h2><div id="team" class="grid"></div>
+<div class="actions"><button class="btn primary" onclick="analyze()">⚡ Analizar equipo</button><button class="btn ghost" onclick="clearTeam()">Borrar</button></div>
+<p class="notice">MVP inicial: el análisis se centra en tipos. No sustituye una calculadora de daño ni considera todavía objetos, habilidades o movimientos.</p></section>
+<div class="ad">ESPACIO PUBLICITARIO · conecta tu proveedor de anuncios cuando la web cumpla sus requisitos</div>
+<section class="card" id="advancedCard">
+<h2>🧠 Análisis avanzado</h2>
+<p class="notice">Añade movimientos y objetos cuando los conozcas. El análisis avanzado combina cobertura ofensiva, presión defensiva, velocidad y una puntuación orientativa.</p>
+<div id="advancedSlots"></div>
+</section>
+<section id="results">
+<div class="card"><h2>Resultado</h2><div id="summary"></div></div>
+<div class="stats"><div class="stat"><span class="notice">Pokémon</span><br><b id="count">0</b></div><div class="stat"><span class="notice">Tipos únicos</span><br><b id="types">0</b></div><div class="stat"><span class="notice">Cobertura</span><br><b id="coverage">—</b></div></div>
+<div class="card"><h2>⚠️ Amenazas a revisar</h2><div id="threats"></div></div>
+<div class="card"><h2>🛡️ Debilidades del equipo</h2><div id="weaknesses"></div></div>
+<div class="card"><h2>🧠 Lectura rápida</h2><p id="advice" class="notice"></p></div>
+</section>
+<section class="card" id="premiumHint"><h2>🚀 Próximamente: análisis Pro</h2>
+<p class="notice">La arquitectura queda preparada para añadir análisis de matchup, recomendaciones de cambios, historial de equipos y explicaciones con IA. Estas funciones pueden convertirse en la capa premium cuando exista tráfico suficiente.</p></section>
+<footer class="footer">ChampAnalyze es un proyecto independiente. No está afiliado a Nintendo, Game Freak, The Pokémon Company ni Pokémon Champions.<br>Datos: Pokémon Champions Data, CC BY 4.0. Revisa y conserva la atribución antes de publicar.</footer>
+</main>
+<div id="modal" class="modal" onclick="if(event.target.id==='modal')closeModal()"><div class="sheet"><input id="search" class="search" placeholder="Buscar Pokémon..." oninput="renderChoices()"><div id="choices" class="choices"></div></div></div>
+<script>
+const DATA='https://raw.githubusercontent.com/otterlyclueless/pokemon-champions-data/main/pokemon/roster.json';
+let roster=[],team=Array(6).fill(null),active=-1;
+const fallback=[['Garchomp',['Dragon','Ground'],445],['Kingambit',['Dark','Steel'],983],['Incineroar',['Fire','Dark'],727],['Whimsicott',['Grass','Fairy'],547],['Charizard',['Fire','Flying'],6],['Sneasler',['Poison','Fighting'],903],['Sylveon',['Fairy'],700],['Basculegion',['Water','Ghost'],902],['Sinistcha',['Grass','Ghost'],1013],['Farigiraf',['Normal','Psychic'],981],['Pikachu',['Electric'],25],['Gengar',['Ghost','Poison'],94]].map(x=>({name:x[0],types:x[1],id:x[2]}));
+async function load(){try{const r=await fetch(DATA);if(!r.ok)throw 0;let d=await r.json();roster=Array.isArray(d)?d:Object.values(d)}catch(e){roster=fallback}}
+function init(){document.getElementById('team').innerHTML=team.map((p,i)=>`<div class="slot ${p?'filled':''}" onclick="openModal(${i})">${p?`<img class="sprite" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id||0}.png" onerror="this.style.display='none'"><div><div class="name">${p.name}</div><div class="sub">${p.types.join(' · ')}</div></div>`:`+ Añadir Pokémon ${i+1}`}</div>`).join('')}
+function openModal(i){active=i;document.getElementById('modal').classList.add('open');document.getElementById('search').value='';renderChoices();setTimeout(()=>document.getElementById('search').focus(),50)}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+function renderChoices(){let q=document.getElementById('search').value.toLowerCase();let a=roster.filter(p=>p.name.toLowerCase().includes(q)).slice(0,80);document.getElementById('choices').innerHTML=a.map((p,i)=>`<button class="choice" onclick="pick(${i},'${p.name.replaceAll("'","\\'")}')">${p.name}<br><small>${p.types.join(' · ')}</small></button>`).join('')||'<p class="notice">No encontrado</p>';window._choices=a}
+function pick(i){team[active]=window._choices[i];closeModal();init()}
+function clearTeam(){team=Array(6).fill(null);document.getElementById('results').style.display='none';init()}
+const eff={Fire:{Grass:2,Ice:2,Bug:2,Steel:2,Fire:.5,Water:.5,Rock:.5,Dragon:.5},Water:{Fire:2,Ground:2,Rock:2,Water:.5,Grass:.5,Dragon:.5},Electric:{Water:2,Flying:2,Electric:.5,Grass:.5,Dragon:.5,Ground:0},Grass:{Water:2,Ground:2,Rock:2,Fire:.5,Grass:.5,Poison:.5,Flying:.5,Bug:.5,Dragon:.5,Steel:.5},Ice:{Grass:2,Ground:2,Flying:2,Dragon:2,Fire:.5,Water:.5,Ice:.5,Steel:.5},Fighting:{Normal:2,Ice:2,Rock:2,Dark:2,Steel:2,Poison:.5,Flying:.5,Psychic:.5,Bug:.5,Fairy:.5,Ghost:0},Ground:{Fire:2,Electric:2,Poison:2,Rock:2,Steel:2,Grass:.5,Bug:.5,Flying:0},Flying:{Grass:2,Fighting:2,Bug:2,Electric:.5,Rock:.5,Steel:.5},Psychic:{Fighting:2,Poison:2,Psychic:.5,Steel:.5,Dark:0},Bug:{Grass:2,Psychic:2,Dark:2,Fire:.5,Fighting:.5,Poison:.5,Flying:.5,Ghost:.5,Steel:.5,Fairy:.5},Rock:{Fire:2,Ice:2,Flying:2,Bug:2,Fighting:.5,Ground:.5,Steel:.5},Ghost:{Psychic:2,Ghost:2,Normal:0,Dark:.5},Dragon:{Dragon:2,Steel:.5,Fairy:0},Dark:{Psychic:2,Ghost:2,Fighting:.5,Dark:.5,Fairy:.5},Steel:{Ice:2,Rock:2,Fairy:2,Fire:.5,Water:.5,Electric:.5,Steel:.5},Fairy:{Fighting:2,Dragon:2,Dark:2,Fire:.5,Poison:.5,Steel:.5},Poison:{Grass:2,Fairy:2,Poison:.5,Ground:.5,Rock:.5,Ghost:.5,Steel:0},Normal:{Rock:.5,Steel:.5,Ghost:0}};
+function mult(a,defs){return defs.reduce((x,d)=>x*(eff[a]?.[d]??1),1)}
+const MOVE_DB={
+"Garchomp":[["Earthquake","Ground",100],["Dragon Claw","Dragon",80],["Rock Slide","Rock",75],["Protect","Normal",0]],
+"Kingambit":[["Kowtow Cleave","Dark",85],["Iron Head","Steel",80],["Sucker Punch","Dark",70],["Protect","Normal",0]],
+"Incineroar":[["Fake Out","Normal",40],["Flare Blitz","Fire",120],["Parting Shot","Dark",0],["Knock Off","Dark",65]],
+"Whimsicott":[["Moonblast","Fairy",95],["Tailwind","Flying",0],["Encore","Normal",0],["Protect","Normal",0]],
+"Charizard":[["Heat Wave","Fire",95],["Air Slash","Flying",75],["Dragon Pulse","Dragon",85],["Protect","Normal",0]],
+"Sneasler":[["Close Combat","Fighting",120],["Dire Claw","Poison",80],["Fake Out","Normal",40],["Protect","Normal",0]],
+"Sylveon":[["Moonblast","Fairy",95],["Hyper Voice","Normal",90],["Mystical Fire","Fire",75],["Protect","Normal",0]],
+"Basculegion":[["Wave Crash","Water",120],["Shadow Ball","Ghost",80],["Ice Beam","Ice",90],["Protect","Normal",0]],
+"Sinistcha":[["Matcha Gotcha","Grass",80],["Shadow Ball","Ghost",80],["Strength Sap","Grass",0],["Protect","Normal",0]],
+"Farigiraf":[["Psychic","Psychic",90],["Hyper Voice","Normal",90],["Trick Room","Psychic",0],["Protect","Normal",0]],
+"Pikachu":[["Thunderbolt","Electric",90],["Volt Switch","Electric",70],["Fake Out","Normal",40],["Protect","Normal",0]],
+"Gengar":[["Shadow Ball","Ghost",80],["Sludge Bomb","Poison",90],["Thunderbolt","Electric",90],["Protect","Normal",0]]
+};
+const ITEMS=["Sin objeto","Objeto ofensivo","Objeto defensivo","Objeto de velocidad"];
+function advUI(){
+ const box=document.getElementById('advancedSlots'); if(!box)return;
+ box.innerHTML=team.map((p,i)=>p?`<div class="advrow"><div class="advhead"><b>${p.name}</b><span class="notice">Pokémon ${i+1}</span></div>
+ <div class="selects"><select id="moves${i}" multiple size="4">${(MOVE_DB[p.name]||[]).map((m,j)=>`<option value="${j}">${m[0]} · ${m[1]}</option>`).join('')}</select>
+ <select id="item${i}">${ITEMS.map(x=>`<option>${x}</option>`).join('')}</select></div></div>`:'').join('');
+}
+const _oldInit=init;
+init=function(){_oldInit();advUI()};
+
+function analyze(){
+ let a=team.filter(Boolean); if(!a.length)return alert('Añade al menos un Pokémon.');
+ let types=[...new Set(a.flatMap(p=>p.types))], w={};
+ for(let atk of Object.keys(eff)){let n=a.filter(p=>mult(atk,p.types)>1).length;if(n)w[atk]=n}
+ let weakSorted=Object.entries(w).sort((x,y)=>y[1]-x[1]);
+
+ // Offensive coverage from selected moves (or defaults)
+ let offensive=[];
+ a.forEach((p,i)=>{
+   let chosen=[...document.querySelectorAll(`#moves${i} option:checked`)].map(o=>+(o.value));
+   let moves=(MOVE_DB[p.name]||[]); if(!chosen.length) chosen=[0,1].filter(x=>moves[x]);
+   chosen.forEach(j=>{if(moves[j]&&moves[j][2]>0)offensive.push(moves[j])});
+ });
+ let covered=[...new Set(offensive.map(m=>m[1]))];
+ let physical=offensive.filter(m=>m[2]>=80).length;
+ let support=offensive.length-physical;
+ let score=Math.max(0,Math.min(100,40+covered.length*6+Math.min(physical,8)*3-Math.max(0,weakSorted.filter(x=>x[1]>=3).length-1)*8));
+ let balance=score>=75?'Fuerte':score>=58?'Decente':'Mejorable';
+
+ document.getElementById('results').style.display='block';
+ document.getElementById('count').textContent=a.length;
+ document.getElementById('types').textContent=types.length;
+ document.getElementById('coverage').textContent=balance;
+ document.getElementById('summary').innerHTML=`<span class="pill">${a.length}/6 Pokémon</span><span class="pill">${types.join(' · ')}</span><div class="resultgrid" style="margin-top:10px"><div class="mini"><span class="notice">Puntuación orientativa</span><br><b style="font-size:30px">${score}/100</b><div class="scorebar"><div class="scorefill" style="width:${score}%"></div></div></div><div class="mini"><span class="notice">Cobertura ofensiva</span><br><b>${covered.length} tipos</b><br><span class="notice">${covered.join(' · ')||'Añade movimientos'}</span></div></div>`;
+ document.getElementById('threats').innerHTML=weakSorted.slice(0,6).map(x=>`<span class="pill bad">${x[0]}: ${x[1]}/${a.length} débiles</span>`).join('')||'<span class="good">Sin debilidades simples detectadas.</span>';
+ document.getElementById('weaknesses').innerHTML=weakSorted.slice(0,10).map(x=>`<span class="pill ${x[1]>=3?'bad':x[1]>=2?'warn':'good'}">${x[0]} ×${x[1]}</span>`).join('');
+
+ let duplicate=covered.length<4?'La cobertura ofensiva es bastante limitada.':covered.length<7?'Hay una base razonable, pero todavía puedes cubrir más tipos.':'La cobertura de tipos es amplia.';
+ let danger=weakSorted.length&&weakSorted[0][1]>=3?` Tu mayor señal de alarma es ${weakSorted[0][0]}, que afecta a ${weakSorted[0][1]} miembros.`:' No aparece una debilidad de tipo que afecte a tres o más miembros.';
+ document.getElementById('advice').textContent=`${duplicate}${danger} ${a.length<6?'Añade los seis Pokémon para una lectura más representativa.':''} Esta puntuación es orientativa y no sustituye cálculos de daño ni considera todavía todas las mecánicas competitivas.`;
+ document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+load().then(init);
+</script>
+</body></html>
