@@ -11,6 +11,7 @@
             --card-border: #1f293d;
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
             --text-main: #f3f4f6;
             --text-sub: #9ca3af;
         }
@@ -33,6 +34,8 @@
         .score-box { text-align: center; padding: 15px; background: #1a2336; border-radius: 12px; margin-bottom: 15px; }
         .score-val { font-size: 32px; font-weight: 900; color: #10b981; }
         .pro-card { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); }
+        .build-card { background: #1a2336; border-left: 3px solid var(--accent-purple); padding: 10px; margin-bottom: 10px; border-radius: 8px; font-size: 12px; }
+        .build-title { font-weight: bold; color: #60a5fa; text-transform: capitalize; font-size: 14px; margin-bottom: 4px; }
         .hidden { display: none; }
     </style>
 </head>
@@ -40,7 +43,7 @@
 
     <header>
         <div class="logo-title">⚡ ChampAnalyze <span class="badge-pro">PRO</span></div>
-        <p class="subtitle">Análisis dinámico en tiempo real (PokeAPI Gen 1-9)</p>
+        <p class="subtitle">Análisis competitivo completo: Movimientos, Naturalezas y Objetos</p>
     </header>
 
     <div class="card">
@@ -56,13 +59,13 @@
                 <div class="score-val" id="scoreVal">0/100</div>
                 <p id="scoreSubText" style="font-size: 12px; color: var(--text-sub); margin-top: 5px;"></p>
             </div>
-            <h3 style="font-size: 13px; margin-bottom: 8px;">🛡️ Mayores Debilidades Detectadas</h3>
+            <h3 style="font-size: 13px; margin-bottom: 8px;">🛡️ Debilidades Defensivas del Equipo</h3>
             <div class="type-tags" id="weaknessTags"></div>
         </div>
 
         <div class="card pro-card">
-            <h2>🤖 Recomendaciones de la IA Pro</h2>
-            <p id="aiRecs" style="font-size: 13px; color: #d1d5db; line-height: 1.5;"></p>
+            <h2>⚔️ Builds Recomendadas por la IA Pro</h2>
+            <div id="buildsContainer" style="margin-top: 10px;"></div>
         </div>
     </div>
 
@@ -96,13 +99,14 @@
                 <div class="slot">
                     <input type="text" id="pkm-input-${idx}" list="all-pokemon-list" value="${pkmn}" placeholder="Buscar Pokémon...">
                     <select id="item-${idx}">
-                        <option value="Sin Objeto">Sin Objeto</option>
                         <option value="Life Orb">Life Orb</option>
                         <option value="Choice Scarf">Choice Scarf</option>
                         <option value="Leftovers">Leftovers</option>
                         <option value="Focus Sash">Focus Sash</option>
                         <option value="Choice Band">Choice Band</option>
                         <option value="Assault Vest">Assault Vest</option>
+                        <option value="Eviolite">Eviolite</option>
+                        <option value="Heavy-Duty Boots">Heavy-Duty Boots</option>
                     </select>
                 </div>
             `;
@@ -110,64 +114,72 @@
 
         async function analyzeTeam() {
             const btn = document.getElementById('btnAnalyze');
-            btn.innerText = "⏳ Analizando equipo...";
+            btn.innerText = "⏳ Generando Builds Competitivas...";
             btn.disabled = true;
 
-            let teamNames = [];
+            let teamData = [];
             let allTypes = [];
             let weaknessesCount = {};
-            let equippedItems = 0;
 
             for(let i = 0; i < 6; i++) {
                 let name = document.getElementById(`pkm-input-${i}`).value.trim().toLowerCase();
                 let item = document.getElementById(`item-${i}`).value;
-                if(item !== "Sin Objeto") equippedItems++;
 
                 if(name) {
-                    teamNames.push(name);
                     try {
                         let res = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
                         if(res.ok) {
                             let data = await res.json();
                             let types = data.types.map(t => t.type.name);
-                            allTypes.push(...types);
+                            let stats = {};
+                            data.stats.forEach(s => stats[s.stat.name] = s.base_stat);
 
+                            let topMoves = data.moves.slice(0, 4).map(m => m.move.name.replace('-', ' '));
+
+                            // Determinar mejor naturaleza según stats base
+                            let bestNature = "Jolly (+Spe, -SpA)";
+                            if (stats['special-attack'] > stats['attack']) {
+                                bestNature = stats['speed'] > 90 ? "Timid (+Spe, -Atk)" : "Modest (+SpA, -Atk)";
+                            } else {
+                                bestNature = stats['speed'] > 90 ? "Jolly (+Spe, -SpA)" : "Adamant (+Atk, -SpA)";
+                            }
+
+                            allTypes.push(...types);
                             types.forEach(t => {
-                                let weaks = typeWeaknesses[t] || [];
-                                weaks.forEach(w => {
-                                    weaknessesCount[w] = (weaknessesCount[w] || 0) + 1;
-                                });
+                                (typeWeaknesses[t] || []).forEach(w => weaknessesCount[w] = (weaknessesCount[w] || 0) + 1);
                             });
+
+                            teamData.push({ name, types, item, bestNature, topMoves });
                         }
-                    } catch(e) {
-                        console.log("Error consultando Pokémon:", name);
-                    }
+                    } catch(e) { console.log(e); }
                 }
             }
 
-            // Cálculo dinámico de puntuación
             let uniqueTypes = new Set(allTypes).size;
-            let score = Math.min(100, Math.max(30, (uniqueTypes * 8) + (equippedItems * 5) + (teamNames.length * 4)));
+            let score = Math.min(100, Math.max(40, (uniqueTypes * 9) + (teamData.length * 5)));
 
-            // Formatear debilidades
-            let sortedWeaknesses = Object.entries(weaknessesCount)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 4);
+            let sortedWeaknesses = Object.entries(weaknessesCount).sort((a, b) => b[1] - a[1]).slice(0, 4);
+            document.getElementById('weaknessTags').innerHTML = sortedWeaknesses.map(([type, count]) => 
+                `<span class="tag">${type.toUpperCase()} x${count}</span>`
+            ).join(' ');
 
-            let weaknessHTML = sortedWeaknesses.length > 0 
-                ? sortedWeaknesses.map(([type, count]) => `<span class="tag">${type.toUpperCase()} x${count}</span>`).join(' ')
-                : '<span class="tag">Sin debilidades severas</span>';
-
-            document.getElementById('results').classList.remove('hidden');
             document.getElementById('scoreVal').innerText = `${score}/100`;
-            document.getElementById('scoreSubText').innerText = `Sinergia calculada para ${teamNames.length} Pokémon (${uniqueTypes} tipos únicos).`;
-            document.getElementById('weaknessTags').innerHTML = weaknessHTML;
+            document.getElementById('scoreSubText').innerText = `Sinergia y cobertura calculada para ${teamData.length} Pokémon.`;
 
-            let topWeak = sortedWeaknesses[0] ? sortedWeaknesses[0][0] : "desconocida";
-            document.getElementById('aiRecs').innerHTML = `
-                • Tu equipo actual suma un total de <b>${uniqueTypes} tipos únicos</b>.<br><br>
-                • La mayor amenaza global detectada es el tipo <b>${topWeak.toUpperCase()}</b>.<br><br>
-                • Tienes <b>${equippedItems} de 6 Pokémon</b> con objeto equipado. ${equippedItems < 6 ? 'Equipa más objetos para mejorar la nota.' : '¡Buena distribución de ítems!'}`;
+            let buildsHTML = "";
+            teamData.forEach(p => {
+                buildsHTML += `
+                    <div class="build-card">
+                        <div class="build-title">⚔️ ${p.name} (${p.types.join(' / ')})</div>
+                        <div><b>🎒 Objeto:</b> ${p.item}</div>
+                        <div><b>🧠 Naturaleza Óptima:</b> ${p.bestNature}</div>
+                        <div><b>🎯 Movimientos Clave:</b> ${p.topMoves.join(', ')}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('buildsContainer').innerHTML = buildsHTML;
+            document.getElementById('results').classList.remove('hidden');
 
             btn.innerText = "🔬 Ejecutar Análisis Pro";
             btn.disabled = false;
@@ -178,3 +190,4 @@
     </script>
 </body>
 </html>
+
