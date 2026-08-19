@@ -43,7 +43,7 @@
 
     <header>
         <div class="logo-title">⚡ ChampAnalyze <span class="badge-pro">PRO</span></div>
-        <p class="subtitle">Análisis competitivo completo: Movimientos, Naturalezas y Objetos</p>
+        <p class="subtitle">Análisis competitivo completo: Mega Piedras, Movimientos y Naturalezas</p>
     </header>
 
     <div class="card">
@@ -74,6 +74,20 @@
     <script>
         const defaultTeam = ["charizard", "arcanine", "garchomp", "dragonite", "venusaur", "beedrill"];
 
+        const itemsList = [
+            "Sin Objeto",
+            // Competitivos Clásicos
+            "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Leftovers", "Focus Sash", "Assault Vest", "Heavy-Duty Boots", "Eviolite", "Rocky Helmet", "Weakness Policy", "Air Balloon",
+            // Mega Piedras
+            "Charizardita X", "Charizardita Y", "Venusaurita", "Blastoisita", "Lucarionita", "Gengarita", "Garchompa", "Mewtwoita X", "Mewtwoita Y", "Rayquazita", "Salamencita", "Metagrossita", "Tyranitarita", "Gardevoirita", "Beedrillita",
+            // Objetos de Clima y Terreno
+            "Damp Rock", "Heat Rock", "Smooth Rock", "Icy Rock", "Terrain Extender",
+            // Vayas Estratégicas
+            "Sitrus Berry", "Lum Berry", "Salac Berry", "Petaya Berry", "Liechi Berry", "Custap Berry",
+            // Cristales Z y Varios
+            "Z-Crystal", "Booster Energy", "Clear Amulet", "Loaded Dice", "Punching Glove"
+        ];
+
         const typeWeaknesses = {
             normal: ["fighting"], fighting: ["flying", "psychic", "fairy"], flying: ["electric", "ice", "rock"],
             poison: ["ground", "psychic"], ground: ["water", "grass", "ice"], rock: ["water", "grass", "fighting", "ground", "steel"],
@@ -95,19 +109,11 @@
 
         const grid = document.getElementById('teamGrid');
         defaultTeam.forEach((pkmn, idx) => {
+            let itemOptions = itemsList.map(item => `<option value="${item}">${item}</option>`).join('');
             grid.innerHTML += `
                 <div class="slot">
                     <input type="text" id="pkm-input-${idx}" list="all-pokemon-list" value="${pkmn}" placeholder="Buscar Pokémon...">
-                    <select id="item-${idx}">
-                        <option value="Life Orb">Life Orb</option>
-                        <option value="Choice Scarf">Choice Scarf</option>
-                        <option value="Leftovers">Leftovers</option>
-                        <option value="Focus Sash">Focus Sash</option>
-                        <option value="Choice Band">Choice Band</option>
-                        <option value="Assault Vest">Assault Vest</option>
-                        <option value="Eviolite">Eviolite</option>
-                        <option value="Heavy-Duty Boots">Heavy-Duty Boots</option>
-                    </select>
+                    <select id="item-${idx}">${itemOptions}</select>
                 </div>
             `;
         });
@@ -136,7 +142,6 @@
 
                             let topMoves = data.moves.slice(0, 4).map(m => m.move.name.replace('-', ' '));
 
-                            // Determinar mejor naturaleza según stats base
                             let bestNature = "Jolly (+Spe, -SpA)";
                             if (stats['special-attack'] > stats['attack']) {
                                 bestNature = stats['speed'] > 90 ? "Timid (+Spe, -Atk)" : "Modest (+SpA, -Atk)";
@@ -171,7 +176,7 @@
                 buildsHTML += `
                     <div class="build-card">
                         <div class="build-title">⚔️ ${p.name} (${p.types.join(' / ')})</div>
-                        <div><b>🎒 Objeto:</b> ${p.item}</div>
+                        <div><b>🎒 Objeto Equipado:</b> ${p.item}</div>
                         <div><b>🧠 Naturaleza Óptima:</b> ${p.bestNature}</div>
                         <div><b>🎯 Movimientos Clave:</b> ${p.topMoves.join(', ')}</div>
                     </div>
