@@ -34,8 +34,9 @@
         .score-box { text-align: center; padding: 15px; background: #1a2336; border-radius: 12px; margin-bottom: 15px; }
         .score-val { font-size: 32px; font-weight: 900; color: #10b981; }
         .pro-card { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); }
-        .build-card { background: #1a2336; border-left: 3px solid var(--accent-purple); padding: 10px; margin-bottom: 10px; border-radius: 8px; font-size: 12px; }
-        .build-title { font-weight: bold; color: #60a5fa; text-transform: capitalize; font-size: 14px; margin-bottom: 4px; }
+        .build-card { background: #1a2336; border-left: 3px solid var(--accent-purple); padding: 12px; margin-bottom: 12px; border-radius: 8px; font-size: 12px; line-height: 1.6; }
+        .build-title { font-weight: bold; color: #60a5fa; text-transform: capitalize; font-size: 14px; margin-bottom: 6px; }
+        .format-selector { width: 100%; background: #111827; border: 1px solid var(--accent-purple); color: white; font-weight: bold; font-size: 13px; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
         .hidden { display: none; }
     </style>
 </head>
@@ -43,10 +44,16 @@
 
     <header>
         <div class="logo-title">⚡ ChampAnalyze <span class="badge-pro">PRO</span></div>
-        <p class="subtitle">Análisis competitivo completo: Mega Piedras, Movimientos y Naturalezas</p>
+        <p class="subtitle">Análisis Competitivo IA: Individuales, Dobles y Sinergias</p>
     </header>
 
     <div class="card">
+        <h2>⚔️ Modo de Juego</h2>
+        <select id="gameFormat" class="format-selector">
+            <option value="singles">🗡️ Combates Individuales (Singles)</option>
+            <option value="doubles">🛡️ Combates Dobles / VGC (Doubles)</option>
+        </select>
+
         <h2>👥 Tu Equipo (6/6)</h2>
         <div class="team-grid" id="teamGrid"></div>
         <button class="btn" id="btnAnalyze" onclick="analyzeTeam()">🔬 Ejecutar Análisis Pro</button>
@@ -64,7 +71,7 @@
         </div>
 
         <div class="card pro-card">
-            <h2>⚔️ Builds Recomendadas por la IA Pro</h2>
+            <h2>🤖 Builds y Sinergias Sugeridas por la IA</h2>
             <div id="buildsContainer" style="margin-top: 10px;"></div>
         </div>
     </div>
@@ -75,18 +82,19 @@
         const defaultTeam = ["charizard", "arcanine", "garchomp", "dragonite", "venusaur", "beedrill"];
 
         const itemsList = [
-            "Sin Objeto",
-            // Competitivos Clásicos
-            "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Leftovers", "Focus Sash", "Assault Vest", "Heavy-Duty Boots", "Eviolite", "Rocky Helmet", "Weakness Policy", "Air Balloon",
-            // Mega Piedras
-            "Charizardita X", "Charizardita Y", "Venusaurita", "Blastoisita", "Lucarionita", "Gengarita", "Garchompa", "Mewtwoita X", "Mewtwoita Y", "Rayquazita", "Salamencita", "Metagrossita", "Tyranitarita", "Gardevoirita", "Beedrillita",
-            // Objetos de Clima y Terreno
-            "Damp Rock", "Heat Rock", "Smooth Rock", "Icy Rock", "Terrain Extender",
-            // Vayas Estratégicas
-            "Sitrus Berry", "Lum Berry", "Salac Berry", "Petaya Berry", "Liechi Berry", "Custap Berry",
-            // Cristales Z y Varios
-            "Z-Crystal", "Booster Energy", "Clear Amulet", "Loaded Dice", "Punching Glove"
+            "Sin Objeto", "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Leftovers", 
+            "Focus Sash", "Assault Vest", "Heavy-Duty Boots", "Eviolite", "Rocky Helmet", "Weakness Policy", 
+            "Clear Amulet", "Booster Energy", "Charizardita X", "Charizardita Y", "Gengarita", "Garchompa"
         ];
+
+        const bestItemsDB = {
+            charizard: { singles: "Heavy-Duty Boots / Life Orb", doubles: "Charizardita Y / Solar Power Orb" },
+            garchomp: { singles: "Choice Scarf / Life Orb", doubles: "Clear Amulet / Focus Sash" },
+            dragonite: { singles: "Choice Band / Heavy-Duty Boots", doubles: "Weakness Policy / Lum Berry" },
+            arcanine: { singles: "Heavy-Duty Boots / Rocky Helmet", doubles: "Safety Goggles / Assault Vest" },
+            venusaur: { singles: "Life Orb / Leftovers", doubles: "Focus Sash / Chlorophyll Life Orb" },
+            beedrill: { singles: "Beedrillita / Choice Band", doubles: "Focus Sash" }
+        };
 
         const typeWeaknesses = {
             normal: ["fighting"], fighting: ["flying", "psychic", "fairy"], flying: ["electric", "ice", "rock"],
@@ -103,7 +111,7 @@
                 const data = await res.json();
                 document.getElementById('all-pokemon-list').innerHTML = data.results.map(p => `<option value="${p.name}">`).join('');
             } catch (e) {
-                console.log("Error cargando lista de Pokémon:", e);
+                console.log("Error cargando Pokémon:", e);
             }
         }
 
@@ -120,16 +128,17 @@
 
         async function analyzeTeam() {
             const btn = document.getElementById('btnAnalyze');
-            btn.innerText = "⏳ Generando Builds Competitivas...";
+            btn.innerText = "⏳ Generando Estrategia Pro...";
             btn.disabled = true;
 
+            const format = document.getElementById('gameFormat').value;
             let teamData = [];
             let allTypes = [];
             let weaknessesCount = {};
 
             for(let i = 0; i < 6; i++) {
                 let name = document.getElementById(`pkm-input-${i}`).value.trim().toLowerCase();
-                let item = document.getElementById(`item-${i}`).value;
+                let itemEquipped = document.getElementById(`item-${i}`).value;
 
                 if(name) {
                     try {
@@ -142,11 +151,25 @@
 
                             let topMoves = data.moves.slice(0, 4).map(m => m.move.name.replace('-', ' '));
 
-                            let bestNature = "Jolly (+Spe, -SpA)";
-                            if (stats['special-attack'] > stats['attack']) {
-                                bestNature = stats['speed'] > 90 ? "Timid (+Spe, -Atk)" : "Modest (+SpA, -Atk)";
+                            // Naturaleza óptima
+                            let bestNature = stats['special-attack'] > stats['attack'] 
+                                ? (stats['speed'] > 90 ? "Timid (+Spe, -Atk)" : "Modest (+SpA, -Atk)")
+                                : (stats['speed'] > 90 ? "Jolly (+Spe, -SpA)" : "Adamant (+Atk, -SpA)");
+
+                            // Objeto sugerido según la BD o lógica por estadísticas
+                            let suggestedItem = (bestItemsDB[name] && bestItemsDB[name][format]) 
+                                ? bestItemsDB[name][format]
+                                : (stats['speed'] > 100 ? "Choice Scarf / Focus Sash" : "Assault Vest / Life Orb");
+
+                            // Generar sinergia contextual
+                            let synergyNote = "";
+                            if (format === "doubles") {
+                                if (types.includes("fire") || types.includes("grass")) synergyNote = "Excelente para estrategias de Sol / Clima junto a coordinadores como Torkoal o Ninetales.";
+                                else if (types.includes("ground")) synergyNote = "Combina muy bien con compañeros voladores o con 'Levitar' para tirar Terremoto sin dañar al aliado.";
+                                else synergyNote = "Funciona como soporte táctico con control de campo o redirigiendo ataques.";
                             } else {
-                                bestNature = stats['speed'] > 90 ? "Jolly (+Spe, -SpA)" : "Adamant (+Atk, -SpA)";
+                                if (types.includes("dragon") || types.includes("flying")) synergyNote = "Gran 'Pivote/Sweeper'. Requiere soporte de control de trampas en el campo (Stealth Rock).";
+                                else synergyNote = "Aporta buena cobertura defensiva mediante cambios oportunos para absorber golpes supereficaces.";
                             }
 
                             allTypes.push(...types);
@@ -154,7 +177,7 @@
                                 (typeWeaknesses[t] || []).forEach(w => weaknessesCount[w] = (weaknessesCount[w] || 0) + 1);
                             });
 
-                            teamData.push({ name, types, item, bestNature, topMoves });
+                            teamData.push({ name, types, itemEquipped, suggestedItem, bestNature, topMoves, synergyNote });
                         }
                     } catch(e) { console.log(e); }
                 }
@@ -169,16 +192,18 @@
             ).join(' ');
 
             document.getElementById('scoreVal').innerText = `${score}/100`;
-            document.getElementById('scoreSubText').innerText = `Sinergia y cobertura calculada para ${teamData.length} Pokémon.`;
+            document.getElementById('scoreSubText').innerText = `Sinergia calculada para Modo ${format.toUpperCase()} con ${teamData.length} Pokémon.`;
 
             let buildsHTML = "";
             teamData.forEach(p => {
                 buildsHTML += `
                     <div class="build-card">
                         <div class="build-title">⚔️ ${p.name} (${p.types.join(' / ')})</div>
-                        <div><b>🎒 Objeto Equipado:</b> ${p.item}</div>
+                        <div><b>🎒 Objeto Equipado:</b> ${p.itemEquipped}</div>
+                        <div><b>⭐ Mejor Objeto Recomendado (${format}):</b> <span style="color:#10b981;">${p.suggestedItem}</span></div>
                         <div><b>🧠 Naturaleza Óptima:</b> ${p.bestNature}</div>
                         <div><b>🎯 Movimientos Clave:</b> ${p.topMoves.join(', ')}</div>
+                        <div style="margin-top: 4px; color: #a78bfa;"><b>🔄 Sinergia (${format}):</b> ${p.synergyNote}</div>
                     </div>
                 `;
             });
